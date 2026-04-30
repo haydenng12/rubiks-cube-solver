@@ -1,12 +1,14 @@
 import sys
 import os
 
+import pytest
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from cube import create_solved_cube, cube_to_string
 from moves import apply_move
 
-
+@pytest.mark.parametrize("move", ["R", "L", "U", "D", "F", "B"])
 def test_inverse_move(move):
     cube = create_solved_cube()
     original = cube_to_string(cube)
@@ -14,16 +16,9 @@ def test_inverse_move(move):
     cube = apply_move(cube, move)
     cube = apply_move(cube, move + "'")
 
-    result = cube_to_string(cube)
+    assert cube_to_string(cube) == original
 
-    if result == original:
-        print(f"PASS: {move} followed by {move}' returns to original")
-    else:
-        print(f"FAIL: {move} followed by {move}' did not return to original")
-        print("Expected:", original)
-        print("Got:     ", result)
-
-
+@pytest.mark.parametrize("move", ["R", "L", "U", "D", "F", "B"])
 def test_double_move(move):
     cube = create_solved_cube()
     original = cube_to_string(cube)
@@ -31,14 +26,7 @@ def test_double_move(move):
     cube = apply_move(cube, move + "2")
     cube = apply_move(cube, move + "2")
 
-    result = cube_to_string(cube)
-
-    if result == original:
-        print(f"PASS: {move}2 followed by {move}2 returns to original")
-    else:
-        print(f"FAIL: {move}2 followed by {move}2 did not return to original")
-        print("Expected:", original)
-        print("Got:     ", result)
+    assert cube_to_string(cube) == original
 
 
 def main():

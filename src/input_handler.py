@@ -20,3 +20,16 @@ def get_manual_cube():
         cube[face] = capture_face(face)
 
     return cube
+
+def choose_input_mode():
+    print("\nChoose input mode:")
+    print("1. Manual input")
+    print("2. Camera scan (coming soon)")
+    choice = input("Select 1 or 2: ").strip()
+
+    if choice == "1":
+        return "manual"
+    if choice == "2":
+        return "camera"
+    
+    print("Invalid selection. Please enter 1 or 2.")
