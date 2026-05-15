@@ -9,7 +9,7 @@ def main():
     mode = choose_input_mode()
 
     if mode == "manual":
-        cube = get_manual_cube();
+        cube = get_manual_cube()
     else:
         print("Camera input mode is not implemented yet. Please use manual input.")
         return

@@ -1,16 +1,17 @@
 """High-level scan orchestration for guided two-corner capture.
 
-Phase 0 delivers contracts and orchestration scaffolding, not camera/CV logic.
-Concrete detection components will be injected in later phases.
+Phase 3 note: grouping implementation is in face_grouping.py; this module keeps
+orchestration and scan fusion responsibilities.
 """
 
-from typing import Callable, Dict, Iterable, Mapping, Sequence
+from __future__ import annotations
 
-from .scan_validation import ValidationResult, validate_cube_state, validate_partial_scan
+from typing import Mapping, Sequence
 
-PartialScan = Dict[str, list[str]]
-CubeState = Dict[str, list[str]]
-CaptureFn = Callable[[Iterable[str]], Mapping[str, Sequence[str]]]
+from .camera import CameraError, close_camera, open_camera, read_frame
+from .scan_validation import validate_cube_state, validate_partial_scan
+from .types import CaptureFn, CubeState, PartialScan
+from .ui_overlay import draw_instructions
 
 
 class ScanError(RuntimeError):
@@ -18,21 +19,32 @@ class ScanError(RuntimeError):
 
 
 def _normalize_scan(scan: Mapping[str, Sequence[str]]) -> PartialScan:
-    """Copy a scan mapping into mutable list-based cube face arrays."""
+    return {face: list(stickers) for face, stickers in scan.items()}
 
-    normalized: PartialScan = {}
-    for face, stickers in scan.items():
-        normalized[face] = list(stickers)
-    return normalized
+
+def preview_until_capture(expected_faces: Sequence[str], window_name: str = "Cube Scanner", camera_index: int = 0):
+    import cv2
+
+    cap = open_camera(camera_index)
+    try:
+        while True:
+            frame = read_frame(cap)
+            overlay = draw_instructions(frame, expected_faces)
+            cv2.imshow(window_name, overlay)
+
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord(" "):
+                return "capture", frame
+            if key in (ord("r"), ord("R")):
+                return "rescan", frame
+            if key in (ord("q"), ord("Q")):
+                return "quit", frame
+    finally:
+        close_camera(cap)
+        cv2.destroyWindow(window_name)
 
 
 def combine_scans(first_scan: Mapping[str, Sequence[str]], second_scan: Mapping[str, Sequence[str]]) -> CubeState:
-    """Merge first and second guided corner scans into one cube dictionary.
-
-    first_scan is expected to contain U/F/R faces.
-    second_scan is expected to contain D/B/L faces.
-    """
-
     first_expected = ("U", "F", "R")
     second_expected = ("D", "B", "L")
 
@@ -55,28 +67,28 @@ def combine_scans(first_scan: Mapping[str, Sequence[str]], second_scan: Mapping[
     return cube
 
 
-def scan_corner_view(capture_fn: CaptureFn, expected_faces: Iterable[str]) -> PartialScan:
-    """Capture one guided corner using an injected capture function.
-
-    `capture_fn` is a boundary that later phases will implement with camera,
-    sticker detection, grouping, warping, and color modeling.
-    """
-
+def scan_corner_view(capture_fn: CaptureFn, expected_faces: Sequence[str]) -> PartialScan:
     raw_scan = capture_fn(expected_faces)
     result = validate_partial_scan(raw_scan, expected_faces)
     if not result.valid:
         raise ScanError(f"Corner scan invalid: {result.message}")
-
     return _normalize_scan(raw_scan)
 
 
 def scan_cube(capture_fn: CaptureFn) -> CubeState:
-    """Guided two-corner scan orchestration entrypoint.
-
-    This function is the future integration point for camera mode in main.py.
-    """
-
     first_scan = scan_corner_view(capture_fn, ("U", "F", "R"))
     second_scan = scan_corner_view(capture_fn, ("D", "B", "L"))
-
     return combine_scans(first_scan, second_scan)
+
+
+def scan_cube_with_preview(capture_fn: CaptureFn, camera_index: int = 0) -> CubeState:
+    for expected in (("U", "F", "R"), ("D", "B", "L")):
+        try:
+            action, _ = preview_until_capture(expected, camera_index=camera_index)
+        except CameraError as exc:
+            raise ScanError(str(exc)) from exc
+
+        if action == "quit":
+            raise ScanError("Scan cancelled by user")
+
+    return scan_cube(capture_fn)

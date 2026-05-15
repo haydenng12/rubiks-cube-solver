@@ -24,7 +24,7 @@ def get_manual_cube():
 def choose_input_mode():
     print("\nChoose input mode:")
     print("1. Manual input")
-    print("2. Camera scan (coming soon)")
+    print("2. Camera scan")
     choice = input("Select 1 or 2: ").strip()
 
     if choice == "1":
