@@ -42,9 +42,9 @@ COLOR_BGR: dict[str, tuple[int, int, int]] = {
 # Corners are ordered top-left, top-right, bottom-right, bottom-left in each
 # face's local coordinates. Shared vertices make one coherent cube corner.
 _NORMALIZED_GUIDES: dict[str, tuple[NormalizedPoint, ...]] = {
-    "U": ((0.50, 0.14), (0.74, 0.30), (0.50, 0.46), (0.26, 0.30)),
-    "F": ((0.26, 0.30), (0.50, 0.46), (0.50, 0.78), (0.26, 0.62)),
-    "R": ((0.50, 0.46), (0.74, 0.30), (0.74, 0.62), (0.50, 0.78)),
+    "U": ((0.50, 0.18), (0.82, 0.34), (0.50, 0.50), (0.18, 0.34)),
+    "F": ((0.18, 0.34), (0.50, 0.50), (0.50, 0.82), (0.18, 0.66)),
+    "R": ((0.50, 0.50), (0.82, 0.34), (0.82, 0.66), (0.50, 0.82)),
 }
 
 
@@ -52,18 +52,28 @@ def build_face_guides(
     frame_shape: tuple[int, ...],
     profile: GuideProfile = STANDARD_FIRST_CORNER,
 ) -> tuple[FaceGuide, FaceGuide, FaceGuide]:
-    """Scale the configured guide polygons to the current camera frame."""
+    """Scale guides inside a centered square viewport without distortion."""
 
     height, width = frame_shape[:2]
+    viewport_size = float(min(width, height))
+    offset_x = (width - viewport_size) / 2.0
+    offset_y = (height - viewport_size) / 2.0
+
+    def project(point: NormalizedPoint) -> PixelPoint:
+        return (
+            offset_x + point[0] * viewport_size,
+            offset_y + point[1] * viewport_size,
+        )
+
     guides = []
     for face in profile.faces:
         color_name = profile.expected_colors[face]
         normalized = _NORMALIZED_GUIDES[face]
         corners = (
-            (normalized[0][0] * width, normalized[0][1] * height),
-            (normalized[1][0] * width, normalized[1][1] * height),
-            (normalized[2][0] * width, normalized[2][1] * height),
-            (normalized[3][0] * width, normalized[3][1] * height),
+            project(normalized[0]),
+            project(normalized[1]),
+            project(normalized[2]),
+            project(normalized[3]),
         )
         guides.append(FaceGuide(face, color_name, COLOR_BGR[color_name], corners))
     return guides[0], guides[1], guides[2]
