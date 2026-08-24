@@ -85,6 +85,32 @@ The program will:
 
 ---
 
+## Guided Camera Capture
+
+The primary camera prototype now uses a fixed three-face guide instead of trying to discover every sticker contour. From the repository root, run:
+
+```bash
+python -m src.vision.guided_preview
+```
+
+Align a standard cube with the projected guides:
+
+* white center on the top `U` guide
+* green center on the front-left `F` guide
+* red center on the right `R` guide
+
+The score beside each face measures dark grid-line contrast and sticker-interior uniformity. Hold the cube steady until the preview reports ready, or press `SPACE` at any time to inspect a capture. The review screen fills all 27 guide cells with their sampled median colors.
+
+Review controls:
+
+* `A`: accept the capture and print center samples
+* `R`: return to the live preview and rescan
+* `Q` or `ESC`: cancel
+
+This first implementation captures and reviews one `U/F/R` corner. Color classification, the opposite `D/B/L` capture, fusion, and solver integration remain subsequent stages.
+
+---
+
 ## Camera Vision Diagnostic
 
 The computer-vision pipeline can be tested through sticker detection, face grouping, and 3 x 3 geometry recovery before color classification is implemented.
