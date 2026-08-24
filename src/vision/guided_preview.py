@@ -62,21 +62,27 @@ def run_guided_preview(
                     stable_frames = min(stable_frames + 1, config.stable_frames_required)
                 else:
                     stable_frames = 0
-                preview = draw_guided_alignment(frame, guides, alignments, stable_frames, config)
-            else:
-                preview = draw_capture_review(review.frame, review.guides, review.sampled_faces)
 
+                preview = draw_guided_alignment(frame, guides, alignments, stable_frames, config)
+                cv2.imshow(WINDOW_NAME, preview)
+                key = cv2.waitKey(1) & 0xFF
+
+                if key in (ord("q"), 27):
+                    return None
+                if key == ord(" "):
+                    review = GuidedCornerCapture(guides, sampled_faces, alignments, frame.copy())
+                continue
+
+            preview = draw_capture_review(review.frame, review.guides, review.sampled_faces)
             cv2.imshow(WINDOW_NAME, preview)
             key = cv2.waitKey(1) & 0xFF
+
             if key in (ord("q"), 27):
                 return None
-
-            if review is None and key == ord(" "):
-                review = GuidedCornerCapture(guides, sampled_faces, alignments, frame.copy())
-            elif review is not None and key in (ord("r"), ord("R")):
+            if key in (ord("r"), ord("R")):
                 review = None
                 stable_frames = 0
-            elif review is not None and key in (ord("a"), ord("A")):
+            elif key in (ord("a"), ord("A")):
                 return review
     finally:
         close_camera(cap)
