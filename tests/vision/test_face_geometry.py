@@ -34,8 +34,11 @@ def _perspective_face() -> list[FakeSticker]:
             stickers.append(
                 FakeSticker(
                     label=row * 3 + col,
-                    center=tuple(float(value) for value in warped_center),
-                    corners=tuple(tuple(float(value) for value in point) for point in warped_corners),
+                    center=(float(warped_center[0]), float(warped_center[1])),
+                    corners=tuple(
+                        (float(point[0]), float(point[1]))
+                        for point in warped_corners
+                    ),
                 )
             )
     return stickers
