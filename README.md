@@ -85,6 +85,29 @@ The program will:
 
 ---
 
+## Camera Vision Diagnostic
+
+The computer-vision pipeline can be tested through sticker detection, face grouping, and 3 x 3 geometry recovery before color classification is implemented.
+
+From the repository root, run:
+
+```bash
+python -m src.vision.diagnostic_preview
+```
+
+Hold the cube so three complete faces are visible. Yellow outlines are raw sticker candidates. When exactly 27 candidates form three valid grids, each face receives a different color and its stickers are numbered from `0` to `8` in row-major order.
+
+Controls:
+
+* `SPACE`: freeze or resume the current frame
+* `Q` or `ESC`: close the preview
+
+If camera index `0` is not the webcam you want, use `--camera 1` (or another index). Use `--no-mirror` to display the unmirrored camera frame.
+
+This is a diagnostic tool, not yet a complete camera-to-solver flow. It does not classify colors, label faces, combine opposite-corner scans, or solve the scanned cube.
+
+---
+
 ## Running Tests
 
 From the project root:
