@@ -7,7 +7,7 @@ returns geometry + color metadata for downstream grouping.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Sequence, Tuple
+from typing import List, Tuple
 
 import cv2
 import numpy as np
