@@ -11,8 +11,25 @@ def main():
     if mode == "manual":
         cube = get_manual_cube()
     else:
-        print("Camera input mode is not implemented yet. Please use manual input.")
-        return
+        from vision.guide_layout import STANDARD_FIRST_CORNER, STANDARD_SECOND_CORNER
+        from vision.guided_preview import run_guided_preview
+        from vision.reconstruction import reconstruct
+
+        print("Capture 1: WHITE top, GREEN front-left, RED right.")
+        first = run_guided_preview(profile=STANDARD_FIRST_CORNER)
+        if first is None:
+            print("Camera scan cancelled.")
+            return
+        print("Capture 2: YELLOW top, BLUE front-left, ORANGE right.")
+        second = run_guided_preview(profile=STANDARD_SECOND_CORNER)
+        if second is None:
+            print("Camera scan cancelled.")
+            return
+        reconstruction = reconstruct(first.sampled_faces, second.sampled_faces)
+        if not reconstruction.structurally_valid:
+            print(f"Scan rejected: {reconstruction.validation_message}")
+            return
+        cube = reconstruction.cube
     
     cube_string = cube_to_string(cube)
 
