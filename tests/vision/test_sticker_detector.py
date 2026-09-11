@@ -1,12 +1,7 @@
-import sys
-import os
-
 import pytest
 import numpy as np
 
 cv2 = pytest.importorskip("cv2", reason="OpenCV runtime not available in test environment", exc_type=ImportError)
-
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from vision.sticker_detector import StickerDetectionConfig, find_sticker_candidates
 
