@@ -1,4 +1,4 @@
-# Implementation Overview
+# Implementation and Software Engineering Guide
 
 ## 1. Project purpose
 
@@ -65,9 +65,9 @@ from scratch.
 - `vision/diagnostic_preview.py` visualizes intermediate detections.
 
 This path is retained as an experimental baseline. Fixed edge thresholds,
-strict candidate counts, and positional k-means are expected to be brittle.
-Keeping the baseline lets the project measure whether guided or hybrid capture
-actually improves reliability rather than assuming that it does.
+strict candidate counts, and positional k-means introduce known sensitivity to
+illumination, scale, and false detections. Retaining the baseline enables a
+controlled comparison with guided and hybrid localization.
 
 ### 2.4 Classification and reconstruction
 
@@ -339,16 +339,3 @@ python -m vision.experiments data/processed/test_samples.json `
   satisfy counts.
 - Physical solvability does not prove that a scan matches the real cube.
 - The real dataset and held-out experimental results have not yet been created.
-
-## 15. Interview explanation
-
-A concise technical explanation is:
-
-> I separated the known cube-solving problem from the uncertain perception
-> problem. The scanner uses two guided poses, homography-based face
-> normalization, robust region sampling, and center-calibrated Lab distances.
-> I implemented both independent classification and a globally constrained
-> assignment that enforces nine stickers per color. I then built dataset,
-> leakage-control, metric, bootstrap, testing, and CI infrastructure so the
-> methods could be compared on the same held-out observations rather than
-> evaluated from a few successful demonstrations.
