@@ -3,7 +3,7 @@ import numpy as np
 
 cv2 = pytest.importorskip("cv2", reason="OpenCV runtime not available in test environment", exc_type=ImportError)
 
-from vision.sticker_detector import StickerDetectionConfig, find_sticker_candidates
+from vision.sticker_detector import StickerDetectionConfig, find_sticker_candidates  # noqa: E402
 
 
 def test_detects_square_candidate_in_synthetic_frame():
