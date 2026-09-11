@@ -30,6 +30,12 @@ STANDARD_FIRST_CORNER = GuideProfile(
     expected_colors={"U": "white", "F": "green", "R": "red"},
 )
 
+STANDARD_SECOND_CORNER = GuideProfile(
+    name="standard D/B/L corner",
+    faces=("D", "B", "L"),
+    expected_colors={"D": "yellow", "B": "blue", "L": "orange"},
+)
+
 COLOR_BGR: dict[str, tuple[int, int, int]] = {
     "white": (245, 245, 245),
     "yellow": (0, 230, 255),
@@ -45,6 +51,9 @@ _NORMALIZED_GUIDES: dict[str, tuple[NormalizedPoint, ...]] = {
     "U": ((0.50, 0.18), (0.82, 0.34), (0.50, 0.50), (0.18, 0.34)),
     "F": ((0.18, 0.34), (0.50, 0.50), (0.50, 0.82), (0.18, 0.66)),
     "R": ((0.50, 0.50), (0.82, 0.34), (0.82, 0.66), (0.50, 0.82)),
+    "D": ((0.50, 0.18), (0.82, 0.34), (0.50, 0.50), (0.18, 0.34)),
+    "B": ((0.18, 0.34), (0.50, 0.50), (0.50, 0.82), (0.18, 0.66)),
+    "L": ((0.50, 0.50), (0.82, 0.34), (0.82, 0.66), (0.50, 0.82)),
 }
 
 
