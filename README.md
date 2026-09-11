@@ -32,7 +32,7 @@ or unsupported results.
 7. Validate structure and pass valid states to Kociemba.
 8. Save predictions so methods can be evaluated on identical observations.
 
-The older contour detector remains an automatic-localization baseline. Fixed
+The contour-based detector remains an automatic-localization baseline. Fixed
 Canny thresholds, strict 27-contour acceptance, and unconstrained k-means
 grouping are measurable baselines for the guided/hybrid comparison.
 
