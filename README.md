@@ -139,3 +139,14 @@ tests/                         unit and integration tests
 - No performance result should be claimed until the real held-out study runs.
 
 Citation metadata is provided in `CITATION.cff`.
+
+## Detailed documentation
+
+- [`docs/implementation_guide.md`](docs/implementation_guide.md) explains the
+  architecture, algorithms, engineering decisions, testing strategy, and
+  complete data flow.
+- [`docs/research_methodology.md`](docs/research_methodology.md) explains the
+  hypotheses, dataset design, experimental conditions, metrics, statistics,
+  failure analysis, privacy, and research-integrity rules.
+- [`docs/research_protocol.md`](docs/research_protocol.md) is the concise frozen
+  protocol used when the physical-camera study begins.
