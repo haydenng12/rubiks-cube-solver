@@ -12,7 +12,8 @@ def test_manifest_can_be_validated_without_real_frames(tmp_path):
                frame_path="missing.png", labels="".join(face * 9 for face in "URFDLB"))
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=sorted(REQUIRED_COLUMNS))
-        writer.writeheader(); writer.writerow(row)
+        writer.writeheader()
+        writer.writerow(row)
     summary = validate_manifest(path, require_frames=False)
     assert summary.rows == 1 and summary.missing_frames == 1
 
