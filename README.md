@@ -1,171 +1,139 @@
-# Rubik's Cube Solver
+# Rubik's Cube Vision Research
 
-This project is an interactive Rubik's Cube solving assistant. It allows users to input a cube state, validate it, compute a solution, and step through the solution move-by-move with a visual representation of the cube. The long-term goal is to extend this into a full system that scans a real cube using a camera and animates the solution in 3D.
+An experimental system for measuring how calibration, color representation,
+assignment constraints, and capture strategy affect camera-based reconstruction
+of a physical 3x3 Rubik's Cube.
 
-Although this is a modest project, I hope that eventually I can deploy it as a website, possibly with a speed-cubing ranked system where players can solve a unique virtual cube daily, like Wordle but for cubes. This would be one feature among many. That may be slightly complicated though, since kociemba, the solver library I'm using, is Python/C-based. I might have to migrate to a JS cube solver library, but this whole spiel can be for another day. Computer vision is probably as far as I'll go for this project for simplicity's sake.
+This repository still solves cubes with Kociemba, but solving is not the research
+contribution. The central problem is reliably turning two camera observations
+into the exact 54-sticker state required by a solver.
 
----
+## Research question
 
-## Features (as of 4/27)
+> How do per-session calibration, perceptual color representation, temporal
+> aggregation, and global color-count constraints affect reconstruction under
+> real-world illumination and viewpoint changes?
 
-* Cube representation and simulation engine
-* Full move support (`R, L, U, D, F, B` + `'` and `2`)
-* Validation of cube input
-* Solver integration using Kociemba’s algorithm
-* Step-by-step playback of solution
-* 2D cube visualizer for debugging and understanding
+The hypotheses and frozen evaluation rules are in
+[`docs/research_protocol.md`](docs/research_protocol.md). The repository provides
+the software and protocol; it intentionally does not ship invented camera data
+or unsupported results.
 
----
+## System
 
-## Planned Features
+1. Capture `U/F/R` using a resolution-independent three-face guide.
+2. Capture the opposite `D/B/L` view.
+3. Perspective-warp each face and sample all 54 sticker interiors.
+4. Use the six centers as per-session color prototypes.
+5. Classify in Lab space, independently or with exactly nine labels per color.
+6. Apply explicit face-orientation transforms and assemble canonical `URFDLB`.
+7. Validate structure and pass valid states to Kociemba.
+8. Save predictions so methods can be evaluated on identical observations.
 
-* Camera-based cube scanning (OpenCV)
-* 3D animated solution playback
-* Scramble generator
-* Timer and practice mode (maybe)
-* Move explanations / learning mode (maybe)
+The older contour detector remains an automatic-localization baseline. Fixed
+Canny thresholds, strict 27-contour acceptance, and unconstrained k-means
+grouping are measurable baselines for the guided/hybrid comparison.
 
----
+## Current infrastructure
 
-## Setup
+- cube simulation and Kociemba integration;
+- guided perspective sampling for both corner views;
+- center-calibrated Lab classification;
+- independent and balanced nine-per-color assignment;
+- explicit face-rotation fusion and confidence margins;
+- dataset validation and split-leakage protection;
+- sticker accuracy, macro F1, and exact-cube accuracy;
+- deterministic experiment runner, condition matrix, CI, and package metadata.
 
-### 1. Clone the repository
+Real-camera collection and final held-out results remain experimental work. A
+structurally valid scan is not evidence that the method is accurate; conclusions
+must come from labeled held-out data.
 
-```bash
-git clone https://github.com/haydenng12/rubiks-cube-solver.git
-cd rubiks-cube-solver
+## Install
+
+Python 3.10 or newer is supported.
+
+```powershell
+py -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev,research]"
 ```
 
-### 2. Install Python dependencies
+On macOS/Linux, activate with `source .venv/bin/activate`.
+
+## Run
 
 ```bash
-pip install -r requirements.txt
-```
-
-### 3. Install Microsoft C++ Build Tools (Windows only)
-
-Required for installing the `kociemba` package.
-
-Download:
-https://visualstudio.microsoft.com/visual-cpp-build-tools/
-
-During installation, select:
-
-* Desktop development with C++
-
----
-
-## Usage
-
-Run the main program:
-
-```bash
+# Existing manual solver
 python src/main.py
+
+# One-view guided diagnostic
+python -m vision.guided_preview
+
+# Two-view calibrated reconstruction
+python -m vision.two_view_preview
+
+# Automatic contour/localization baseline
+python -m vision.diagnostic_preview
 ```
 
-You will be prompted to enter each face of the cube manually.
+The two-view prototype asks for `U/F/R` followed by `D/B/L`, prints a
+canonical candidate state, and identifies the least-confident stickers.
+Physical orientation must be verified with known states before formal capture.
 
-Example input for a solved cube:
+## Dataset and experiments
 
-```
-U: UUUUUUUUU
-R: RRRRRRRRR
-F: FFFFFFFFF
-D: DDDDDDDDD
-L: LLLLLLLLL
-B: BBBBBBBBB
-```
+Copy `data/manifest_template.csv` and follow
+[`docs/dataset_card.md`](docs/dataset_card.md). Never randomly split adjacent
+frames: train and test observations are grouped by both session and scramble.
 
-The program will:
-
-1. Validate the cube
-2. Compute a solution
-3. Display the solution step-by-step
-4. Show the cube state after each move
-
----
-
-## Guided Camera Capture
-
-The primary camera prototype now uses a fixed three-face guide instead of trying to discover every sticker contour. From the repository root, run:
+Saved experiment records contain `sample_id`, a 54-character `labels` value,
+54 `samples_bgr` triples in canonical order, and six center
+`prototypes_bgr`.
 
 ```bash
-python -m src.vision.guided_preview
+python -m vision.experiments data/processed/test_samples.json \
+  --method independent_lab --output artifacts/independent.csv
+
+python -m vision.experiments data/processed/test_samples.json \
+  --method balanced_lab --output artifacts/balanced.csv
 ```
 
-Align a standard cube with the projected guides:
+Report exact-cube accuracy alongside sticker accuracy. Even one wrong sticker
+can make an otherwise high-accuracy reconstruction unusable.
 
-* white center on the top `U` guide
-* green center on the front-left `F` guide
-* red center on the right `R` guide
-
-The score beside each face measures dark grid-line contrast and sticker-interior uniformity. Hold the cube steady until the preview reports ready, or press `SPACE` at any time to inspect a capture. The review screen fills all 27 guide cells with their sampled median colors.
-
-Review controls:
-
-* `A`: accept the capture and print center samples
-* `R`: return to the live preview and rescan
-* `Q` or `ESC`: cancel
-
-This first implementation captures and reviews one `U/F/R` corner. Color classification, the opposite `D/B/L` capture, fusion, and solver integration remain subsequent stages.
-
----
-
-## Camera Vision Diagnostic
-
-The computer-vision pipeline can be tested through sticker detection, face grouping, and 3 x 3 geometry recovery before color classification is implemented.
-
-From the repository root, run:
+## Verification
 
 ```bash
-python -m src.vision.diagnostic_preview
+python -m pytest -q
+python -m pytest --cov=src --cov-report=term-missing
+python -m ruff check src tests
 ```
 
-Hold the cube so three complete faces are visible. Yellow outlines are raw sticker candidates. When exactly 27 candidates form three valid grids, each face receives a different color and its stickers are numbered from `0` to `8` in row-major order.
+CI runs the suite on Python 3.10 and 3.12.
 
-Controls:
+## Repository map
 
-* `SPACE`: freeze or resume the current frame
-* `Q` or `ESC`: close the preview
-
-If camera index `0` is not the webcam you want, use `--camera 1` (or another index). Use `--no-mirror` to display the unmirrored camera frame.
-
-This is a diagnostic tool, not yet a complete camera-to-solver flow. It does not classify colors, label faces, combine opposite-corner scans, or solve the scanned cube.
-
----
-
-## Running Tests
-
-From the project root:
-
-```bash
-python tests/test_moves.py
-python tests/test_solver.py
+```text
+configs/                       frozen experiment matrix
+data/                          real-data manifest schema
+docs/                          research protocol and dataset card
+src/vision/color_model.py      Lab classifiers and assignment constraints
+src/vision/dataset.py          manifest and leakage validation
+src/vision/experiments.py      repeatable evaluation entry point
+src/vision/metrics.py          reconstruction metrics
+src/vision/reconstruction.py  sampled colors to canonical cube state
+src/vision/scan_fusion.py      explicit orientation transforms
+tests/                         unit and integration tests
 ```
 
-These tests are rudimentary with few test cases but they are intended to verify:
+## Limitations
 
-* Move correctness (inverse and double moves)
-* Solver correctness (solution returns cube to solved state)
+- Standard six-color 3x3 cubes only.
+- The guide assumes the documented white/green/red and yellow/blue/orange poses.
+- Strong glare and incorrect physical rotations can invalidate reconstruction.
+- Balanced assignment guarantees color counts, not physical solvability.
+- No performance result should be claimed until the real held-out study runs.
 
----
-
-## Technologies Used
-
-* Python
-* Kociemba algorithm (`kociemba` library)
-* OpenCV (planned for computer vision)
-
----
-
-## Future Direction
-
-The ultimate goal is to build a system that:
-
-* Scans a real cube using a camera
-* Automatically detects colors
-* Computes an optimal solution
-* Animates the solution in an interactive 3D interface
-
-```
-```
+Citation metadata is provided in `CITATION.cff`.
