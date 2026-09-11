@@ -1,76 +1,234 @@
-# Design Decisions (as of 4/29)
+# Computer Vision Architecture Decisions
 
-## Direction
+## Status
 
-When I started planning the computer vision work, I spent some time thinking about whether the scanner should be completely automatic or guided. While a fully automatic scanner sounds ideal at first (user shows the cube in any random orientation and the system figures everything out), it's not a very practical approach to this project as it introduces a lot of complexity all at once - orientation inference, way less deterministic face mapping, and much harder debugging.
+Accepted. This document records the principal design decisions for the
+camera-based cube reconstruction pipeline.
 
-So the direction I'm going in for this project is guided scanning. That means the user will still get a mostly automatic computer vision pipeline, but they'll follow simple prompts for how to hold the cube. The tradeoff is a little more user involvement, but the benefit is dramatically better reliability and much clearer logic for cube reconstruction. 
+## Context
 
-Manual input will still be an option for users. It's not only helpful for users without camera support, but is a good safety net while I work on implementing vision features. 
+The solver requires a canonical 54-sticker state in `URFDLB` order. Camera
+input introduces uncertainty in pose, perspective, illumination, color
+appearance, motion, glare, and face orientation. The vision subsystem is
+therefore responsible for acquiring observations, normalizing geometry,
+classifying sticker colors, reconstructing canonical face order, and rejecting
+unreliable states before solver invocation.
 
-## Building on what we have
+The project supports standard six-color 3x3 cubes. Nonstandard color schemes,
+picture cubes, and larger cube sizes are outside the current scope.
 
-I've already implemented the current solver architecture, and it will require minimal changes in the future, since we are building our computer vision pipeline right on top of it. The files in 'src/' are already doing the right core work, so the vision component doesn't need to reinvent solving logic. Its job is much narrow and cleaner: producing a correct cube state in the same format the solver system already understands.
+## Decision 1: Guided capture is the primary acquisition method
 
-To put it simply, the CV scanner is a new input pipeline that reuses the existing backbone:
-- Acquire cube state from camera
-- Convert it into the same face dictionary currently used by manual input
-- Reuse existing validation, solver, and playback unchanged whenever possible
+### Decision
 
-I am open, of course, to suggestions for this approach. Simply leave a comment on documentation-related pull requests or create an issue. Any suggestions however, should keep the architecture modular.
+The primary workflow uses two prescribed three-face poses:
 
-## User Experience
+- first observation: `U/F/R`;
+- second observation: `D/B/L`.
 
-The end goal is a CLI-like flow that feels like a natural extension to our program right now The user will choose between manual mode and camera mode. If they choose camera mode, the app opens a preview window and gives clear instructions for the first corner scan ('U/F/R') and then the opposite corner scan ('D/B/L'), see below. After each scan, the program shows what it detected and prompts the user to accept or re-scan. If both scans are accepted, the program reconstructs the full cube, validates it, solves it, and then hands it off to the playback mechanism already in place.
+Resolution-independent overlays provide a geometric prior for each visible
+face. A contour-based automatic detector remains available as an experimental
+baseline.
 
-![alt text](image.png)
+### Rationale
 
-Note: The animation library is to be determined, but I am considering AnimCubeJS because it's an interactive animation. It renders it in the browser. I know little of front-end work so maybe browsers will be difficult to work with, let me know.
+Unconstrained pose discovery requires simultaneous estimation of cube
+orientation, visible face identity, grid geometry, and sticker correspondence.
+Guided capture reduces this ambiguity while retaining automatic color sampling
+and state reconstruction. The two-view protocol also makes face identity and
+center-based calibration explicit.
 
-## Scanning the Cube (Important!)
+### Consequences
 
-The scanner will be based on color detection and face normalization (since the tiles of the cube will be angled).
-Essentially, we will:
-- detect tile-like regions in the frame
-- group them into three visible faces
-- normalize each face with perspective correction
-- sample a 3 x 3 grid from each normalized face
-- classify colors across all 54 sampled tiles
-- map those color classes to `U/R/F/D/L/B` labels
-- merge the two scans into one full cube state
+- Capture behavior is more deterministic and testable.
+- The user must follow a documented orientation protocol.
+- Incorrect physical rotation between views can still produce positional
+  errors and must be detected through validation and confidence checks.
+- Automatic and hybrid localization can be evaluated against the guided
+  baseline using identical downstream components.
 
-This design is practical in my opinion because it aligns with what the current code expects the cube data to be like.
+## Decision 2: Manual input remains a supported adapter
 
-## Perspective Warp
+### Decision
 
-A face seen at an angle is distorted in camera space If we try to index the tiles directly from that distorted view, that may introduce a lot of bugs. A perspective transform that lets us map each detected face into a standard square image where tile positions are predictable makes sampling the 3 x 3 grid become deterministic.
+Manual face entry remains available independently of camera support.
 
-## Color Strategy
+### Rationale
 
-I'm unsure how I want to approach this. There was a suggestion to train our own model off of Kaggle datasets, but that approach may be fragile due to varying lighting conditions from users. 
+Manual input provides a deterministic reference path for validating cube
+representation, move application, solver integration, and playback. It also
+isolates vision failures from downstream solver failures.
 
-From what I've researched, it seems a good solution would be to gather all sampled tile colors from both scans and cluster similar shades into six groups. We don't immediately care if a cluster is called 'U' or 'R', we first make sure similar colors are grouped together reliably. After grouping, we assign names to those six clusters using the cube's center tiles and the guided scan orientation. 
+### Consequences
 
-We need to avoid reading a tile from just one pixel, since cameras pick up a lot of noise. Glare can make a single pixel very misleading. Instead, I think we should average a small region near the center of each tile, which is much more stable.
+- Core cube behavior can be tested without OpenCV or camera hardware.
+- The vision subsystem is implemented as an input adapter rather than a second
+  solver architecture.
 
-As for handling similar colors like red and orange, I don't know if it's worth it to address this issue. If we were to address it though, I think we should implement some sort of confidence scale. If a grouping looks uncertain, then we prompt the user for a re-scan instead of potentially solving the wrong cube.
+## Decision 3: Perspective normalization precedes color sampling
 
-## Vision Module
+### Decision
 
-I've made a vision module with the following responsibilities:
-- `camera.py` for frame capture
-- `ui_overlay.py` for live guidance and diagnostic overlays
-- `sticker_detector.py` for contour-based sticker candidate detection
-- `face_grouping.py` for grouping candidates into three visible faces
-- `face_geometry.py` for corner estimation and canonical point ordering
-- `warp_sampling.py` for perspective transform and grid sampling
-- `color_model.py` for color features, clustering, and confidence(?)
-- `face_labeling.py` for mapping colors to `U/R/F/D/L/B`
-- `scan_fusion.py` for merging first and second scans
-- `scan_validation.py` for quality checks before solve
-- `scanner.py` for orchestrating the complete scan flow
+Each observed face is mapped from a camera-space quadrilateral to a canonical
+square using a projective homography. Sticker colors are sampled from the
+interiors of the resulting 3x3 cells.
 
+### Rationale
 
-## Suggestions
+Direct sampling in the original frame is sensitive to perspective distortion
+and can mix sticker interiors with borders or adjacent faces. Normalization
+provides a consistent coordinate system for cell indexing and downstream
+classification.
 
-Please give any suggestions below. 
+### Consequences
+
+- Face ordering is deterministic after a valid quadrilateral is established.
+- Homography quality depends on accurate guide alignment or face localization.
+- Geometry errors can propagate into color measurements and must be retained
+  in diagnostic output.
+
+## Decision 4: Robust regions replace single-pixel measurements
+
+### Decision
+
+Sticker appearance is represented by the median color of a central cell region.
+The sampled region excludes most grid borders.
+
+### Rationale
+
+Single pixels are sensitive to sensor noise, reflections, compression, and
+minor geometric error. Regional medians reduce the influence of isolated
+outliers and specular highlights.
+
+### Consequences
+
+- Sampling is more stable under small perturbations.
+- Large highlights or substantial misalignment can still bias a region.
+- Temporal aggregation is evaluated separately rather than embedded
+  implicitly in the single-frame sampler.
+
+## Decision 5: Classification uses session-specific center calibration
+
+### Decision
+
+The six center stickers define the color prototypes for each capture session.
+Sticker-to-prototype costs are calculated in CIE Lab space.
+
+### Rationale
+
+Physical centers are fixed and identify the six face classes. Session-specific
+prototypes adapt to camera and lighting changes without requiring a personal
+training dataset. Lab coordinates provide a more perceptually meaningful
+distance than raw BGR differences.
+
+### Consequences
+
+- Ordinary users do not need to train or contribute a dataset.
+- Calibration quality depends on correct center sampling.
+- Center calibration does not fully eliminate spatially uneven illumination.
+- Fixed HSV thresholds and alternative feature spaces remain research
+  baselines.
+
+## Decision 6: Global color counts are an experimental constraint
+
+### Decision
+
+The system supports both independent nearest-prototype classification and a
+balanced global assignment with exactly nine stickers per color.
+
+### Rationale
+
+A standard cube contains nine stickers of each color. Independent decisions can
+violate this invariant. Balanced assignment incorporates known problem
+structure by minimizing total classification cost subject to valid counts.
+
+### Consequences
+
+- Balanced assignment guarantees color-count validity.
+- It does not guarantee correct positions or physical solvability.
+- The constraint can force an ambiguous sample into an incorrect class.
+- Independent and constrained methods must be evaluated on the same saved
+  observations.
+
+## Decision 7: Face orientation is represented explicitly
+
+### Decision
+
+Camera observations are converted to canonical solver coordinates through
+named per-face rotation transforms.
+
+### Rationale
+
+Correct color recognition alone is insufficient. A face that is rotated or
+mirrored relative to Kociemba's indexing convention produces an incorrect or
+impossible state. Explicit transforms are reviewable, testable, and independent
+of classification.
+
+### Consequences
+
+- Orientation behavior is not hidden in list slicing or capture code.
+- Known asymmetric cube states are required to validate all transforms.
+- Mirror behavior is treated as a separate acquisition setting.
+
+## Decision 8: Validation is layered
+
+### Decision
+
+The reconstructed state passes through syntax, color-count, center, and
+physical-solvability checks before solver output is accepted.
+
+### Rationale
+
+Different failure categories require different remediation. Invalid counts
+usually indicate classification error; valid counts with an impossible state
+may indicate positional or orientation error. Layered validation preserves this
+diagnostic distinction.
+
+### Consequences
+
+- Invalid observations are rejected before playback.
+- A physically solvable prediction is not assumed to match the physical cube.
+- Exact comparison with labeled ground truth remains necessary during
+  evaluation.
+
+## Decision 9: Research evaluation is separated from live capture
+
+### Decision
+
+Saved sticker measurements and metadata are evaluated offline through a common
+experiment interface.
+
+### Rationale
+
+Recording a new camera presentation for each method would confound algorithm
+choice with pose and lighting changes. Replaying identical observations
+supports controlled paired comparisons and reproducible result generation.
+
+### Consequences
+
+- Raw observations, predictions, configurations, and metrics can be versioned
+  independently.
+- Train, validation, and test groups are defined by capture session and
+  scramble to prevent adjacent-frame leakage.
+- Live demonstrations are not treated as evidence of real-world accuracy.
+
+## Decision 10: Camera data remains local unless deliberately published
+
+### Decision
+
+The live scanner does not upload frames. Research recordings are created only
+through an explicit collection workflow and are excluded from public release
+unless reviewed and approved for publication.
+
+### Rationale
+
+Camera frames may contain people, documents, or other private background
+information. Public source code does not require public raw imagery.
+
+### Consequences
+
+- Dataset collection requires a documented consent and review process.
+- Public artifacts should prefer cropped cube regions, anonymized samples,
+  metadata, and aggregate results.
+- Any committed file in the public repository must be treated as publicly
+  accessible.

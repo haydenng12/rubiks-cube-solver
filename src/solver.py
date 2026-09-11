@@ -8,5 +8,5 @@ def solve_cube(cube_string):
         return ""
     try:
         return kociemba.solve(cube_string)
-    except Exception as exc:
+    except ValueError as exc:
         raise ValueError(f"Cube state is not physically solvable: {exc}") from exc

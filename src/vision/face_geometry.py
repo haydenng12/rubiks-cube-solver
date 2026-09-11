@@ -48,7 +48,9 @@ def _order_quad(points: np.ndarray) -> np.ndarray:
     ordered = np.roll(ordered, -start, axis=0)
 
     # In image coordinates a clockwise traversal from TL visits TR next.
-    cross = np.cross(ordered[1] - ordered[0], ordered[2] - ordered[1])
+    first = ordered[1] - ordered[0]
+    second = ordered[2] - ordered[1]
+    cross = first[0] * second[1] - first[1] * second[0]
     if cross < 0:
         ordered = ordered[[0, 3, 2, 1]]
     return ordered

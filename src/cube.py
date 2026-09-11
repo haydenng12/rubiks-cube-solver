@@ -20,8 +20,5 @@ def cube_to_string(cube):
     return cube_string
 
 def is_solved(cube):
-    for stickers in cube.values():
-        if len(set(stickers)) != 1:
-            return False
-    return True
-
+    expected = create_solved_cube()
+    return set(cube) == set(expected) and all(cube[face] == expected[face] for face in expected)

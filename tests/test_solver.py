@@ -8,7 +8,7 @@ from solver import solve_cube
 from moves import apply_sequence
 
 
-def main():
+def test_solver_solves_known_scramble():
     cube = create_solved_cube()
 
     scramble = ["R", "U", "R'", "U'"]
@@ -25,13 +25,12 @@ def main():
 
     cube = apply_sequence(cube, solution.split())
 
-    if is_solved(cube):
-        print("PASS: Solver solution returned cube to solved state")
-    else:
-        print("FAIL: Solver solution did not return cube to solved state")
-        print("Final cube:")
-        print(cube_to_string(cube))
+    assert is_solved(cube)
+
+
+def test_solved_cube_needs_no_moves():
+    assert solve_cube(cube_to_string(create_solved_cube())) == ""
 
 
 if __name__ == "__main__":
-    main()
+    test_solver_solves_known_scramble()
