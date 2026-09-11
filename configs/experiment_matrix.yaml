@@ -1,0 +1,20 @@
+seed: 20260910
+research_question: >-
+  How do calibration, illumination normalization, temporal aggregation, and
+  global color-count constraints affect camera-based cube reconstruction?
+split_unit: session_and_scramble
+methods:
+  - independent_lab
+  - balanced_lab
+conditions:
+  lighting: [neutral, warm, cool, daylight, dim]
+  distance: [near, nominal, far]
+  angle: [low, medium, high]
+  glare: [none, mild, strong]
+metrics:
+  - sticker_accuracy
+  - macro_f1
+  - exact_cube_accuracy
+  - structurally_valid_rate
+  - physically_solvable_rate
+  - latency_ms
