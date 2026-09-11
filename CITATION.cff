@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+title: "Rubik's Cube Vision: Robust State Reconstruction Experiments"
+message: "If you use this software or experimental protocol, please cite it."
+type: software
+authors:
+  - family-names: Ng
+    given-names: Hayden
+repository-code: "https://github.com/haydenng12/rubiks-cube-solver"
+version: 0.2.0
