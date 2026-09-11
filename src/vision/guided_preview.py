@@ -15,7 +15,7 @@ import numpy as np
 
 from .alignment import AlignmentConfig, FaceAlignment, all_faces_ready, score_face_alignment
 from .camera import CameraError, close_camera, open_camera, read_frame
-from .guide_layout import FaceGuide, build_face_guides
+from .guide_layout import FaceGuide, GuideProfile, STANDARD_FIRST_CORNER, build_face_guides
 from .guided_overlay import draw_capture_review, draw_guided_alignment
 from .warp_sampling import SampledFace, sample_guided_face
 
@@ -31,8 +31,8 @@ class GuidedCornerCapture:
     frame: np.ndarray = field(repr=False, compare=False)
 
 
-def analyze_guided_frame(frame: np.ndarray) -> tuple[tuple[FaceGuide, ...], tuple[SampledFace, ...], tuple[FaceAlignment, ...]]:
-    guides = build_face_guides(frame.shape)
+def analyze_guided_frame(frame: np.ndarray, profile: GuideProfile = STANDARD_FIRST_CORNER) -> tuple[tuple[FaceGuide, ...], tuple[SampledFace, ...], tuple[FaceAlignment, ...]]:
+    guides = build_face_guides(frame.shape, profile)
     sampled_faces = tuple(sample_guided_face(frame, guide) for guide in guides)
     alignments = tuple(score_face_alignment(sampled) for sampled in sampled_faces)
     return guides, sampled_faces, alignments
@@ -43,6 +43,7 @@ def run_guided_preview(
     width: int = 1280,
     height: int = 720,
     mirror: bool = False,
+    profile: GuideProfile = STANDARD_FIRST_CORNER,
 ) -> GuidedCornerCapture | None:
     """Guide, capture, review, and return one U/F/R corner observation."""
 
@@ -57,7 +58,7 @@ def run_guided_preview(
                 frame = read_frame(cap)
                 if mirror:
                     frame = cv2.flip(frame, 1)
-                guides, sampled_faces, alignments = analyze_guided_frame(frame)
+                guides, sampled_faces, alignments = analyze_guided_frame(frame, profile)
                 if all_faces_ready(alignments, config):
                     stable_frames = min(stable_frames + 1, config.stable_frames_required)
                 else:
