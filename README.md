@@ -1,4 +1,3 @@
- 1 file changed, 2 insertions(+)
 # Rubik's Cube Vision Research
 
 [![tests](https://github.com/haydenng12/rubiks-cube-solver/actions/workflows/tests.yml/badge.svg)](https://github.com/haydenng12/rubiks-cube-solver/actions/workflows/tests.yml)
